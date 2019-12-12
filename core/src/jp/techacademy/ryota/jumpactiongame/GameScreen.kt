@@ -3,6 +3,7 @@ package jp.techacademy.ryota.jumpactiongame
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Preferences
 import com.badlogic.gdx.ScreenAdapter
+import com.badlogic.gdx.audio.Sound
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.Texture
@@ -37,10 +38,12 @@ class GameScreen(private val mGame: JumpActionGame) : ScreenAdapter() {
     private val mGuiCamera: OrthographicCamera
     private val mViewPort: FitViewport
     private val mGuiViewPort: FitViewport
+    private val mEncountSound: Sound
 
     private var mRandom: Random
     private var mSteps: ArrayList<Step>
     private var mStars: ArrayList<Star>
+    private var mEnemies: ArrayList<Enemy>
     private lateinit var mUfo: Ufo
     private lateinit var mPlayer: Player
 
@@ -70,10 +73,14 @@ class GameScreen(private val mGame: JumpActionGame) : ScreenAdapter() {
         mGuiCamera.setToOrtho(false, GUI_WIDTH, GUI_HEIGHT)
         mGuiViewPort = FitViewport(GUI_WIDTH, GUI_HEIGHT, mGuiCamera)
 
+        // 敵にぶつかった時のサウンドを設定する
+        mEncountSound = Gdx.audio.newSound(Gdx.files.internal("encounted.mp3"))
+
         // プロパティの初期化
         mRandom = Random()
         mSteps = ArrayList<Step>()
         mStars = ArrayList<Star>()
+        mEnemies = ArrayList<Enemy>()
         mGameState = GAME_STATE_READY
         mTouchPoint = Vector3()
 
@@ -122,6 +129,11 @@ class GameScreen(private val mGame: JumpActionGame) : ScreenAdapter() {
             mStars[i].draw(mGame.batch)
         }
 
+        // Enemy
+        for (i in 0 until mEnemies.size) {
+            mEnemies[i].draw(mGame.batch)
+        }
+
         // UFO
         mUfo.draw(mGame.batch)
 
@@ -150,6 +162,7 @@ class GameScreen(private val mGame: JumpActionGame) : ScreenAdapter() {
         // テクスチャの準備
         val stepTexture = Texture("step.png")
         val starTexture = Texture("star.png")
+        val enemyTexture = Texture("enemy.png")
         val playerTexture = Texture("uma.png")
         val ufoTexture = Texture("ufo.png")
 
@@ -169,6 +182,12 @@ class GameScreen(private val mGame: JumpActionGame) : ScreenAdapter() {
                 val star = Star(starTexture, 0, 0, 72, 72)
                 star.setPosition(step.x + mRandom.nextFloat(), step.y + Star.STAR_HEIGHT + mRandom.nextFloat() * 3)
                 mStars.add(star)
+            }
+
+            if (mRandom.nextFloat() > 0.8f) {
+                val enemy = Enemy(enemyTexture, 0, 0, 124, 124)
+                enemy.setPosition(step.x + mRandom.nextFloat(), step.y + Enemy.ENEMY_HEIGHT + mRandom.nextFloat() * 3)
+                mEnemies.add(enemy)
             }
 
             y += (maxJumpHeight - 0.5f)
@@ -260,6 +279,17 @@ class GameScreen(private val mGame: JumpActionGame) : ScreenAdapter() {
                     mPrefs.flush()
                 }
                 break
+            }
+        }
+
+        // Enemyとの当たり判定
+        for (i in 0 until mEnemies.size) {
+            val enemy = mEnemies[i]
+
+            if (mPlayer.boundingRectangle.overlaps(enemy.boundingRectangle)) {
+                mEncountSound.play(1.0f)
+                mGameState = GAME_STATE_GAMEOVER
+                return
             }
         }
 
